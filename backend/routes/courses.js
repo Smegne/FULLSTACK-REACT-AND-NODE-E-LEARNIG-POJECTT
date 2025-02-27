@@ -5,7 +5,7 @@ const authMiddleware = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
 
-// Configure multer for local storage
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/'),
   filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
@@ -29,13 +29,14 @@ router.get('/', authMiddleware, (req, res) => {
       console.error('GET error:', err);
       return res.status(500).json({ error: err.message });
     }
-    res.json(results);
+    res.json(results); // Includes category
   });
 });
 
 router.post('/', authMiddleware, upload.single('thumbnail'), (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
-  const { title, description, instructorId, thumbnailUrl } = req.body;
+
+  const { title, description, instructorId, thumbnailUrl, category } = req.body;
   const file = req.file;
 
   console.log('Request body:', req.body);
@@ -45,13 +46,15 @@ router.post('/', authMiddleware, upload.single('thumbnail'), (req, res) => {
   if (thumbnailUrl) {
     finalThumbnailUrl = thumbnailUrl;
   } else if (file) {
-    finalThumbnailUrl = `http://localhost:5000/uploads/${file.filename}`; // Full URL
+    finalThumbnailUrl = `http://localhost:5000/uploads/${file.filename}`;
   } else {
     return res.status(400).json({ error: 'Thumbnail image or URL is required' });
   }
 
-  const query = 'INSERT INTO courses (title, description, instructor_id, thumbnail_url) VALUES (?, ?, ?, ?)';
-  db.query(query, [title, description, instructorId, finalThumbnailUrl], (err, result) => {
+  if (!category) return res.status(400).json({ error: 'Category is required' });
+
+  const query = 'INSERT INTO courses (title, description, instructor_id, thumbnail_url, category) VALUES (?, ?, ?, ?, ?)';
+  db.query(query, [title, description, instructorId, finalThumbnailUrl, category], (err, result) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ error: `Database error: ${err.message}` });

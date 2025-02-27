@@ -9,17 +9,19 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
-app.use('/uploads', express.static('uploads')); // Serve uploads
+app.use('/uploads', express.static('uploads'));
 
 const courseRoutes = require('./routes/courses');
 const userRoutes = require('./routes/users');
 const lessonRoutes = require('./routes/lessons');
 const progressRoutes = require('./routes/progress');
+const carouselRoutes = require('./routes/carousel');
 
 app.use('/api/courses', courseRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api/users', userRoutes); // Must include /api/users
 app.use('/api/lessons', lessonRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/carousel', carouselRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

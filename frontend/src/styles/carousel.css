@@ -1,0 +1,47 @@
+/* Container for the entire carousel */
+.carousel-container {
+    position: relative;
+    width: 100%; /* Adjusted to 100% for responsiveness */
+    max-width: 2400px; /* Wide container */
+    height: 800px; /* Your specified height */
+    overflow: hidden;
+    margin: 0 auto;
+  }
+  
+  /* Track holding all images */
+  .carousel-track {
+    display: flex;
+    height: 100%;
+    width: calc(1000px * var(--image-count, 6)); /* Dynamic width, defaults to 6 */
+    transition: transform 0.5s ease-in-out;
+  }
+  
+  /* Individual carousel images */
+  .carousel-image {
+    width: 1000px; /* Your specified width */
+    height: 100%;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+  
+  /* Navigation arrows */
+  .carousel-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+    z-index: 10;
+    font-size: 1.5rem;
+  }
+  
+  .carousel-left-arrow {
+    left: 10px;
+  }
+  
+  .carousel-right-arrow {
+    right: 10px;
+  }
