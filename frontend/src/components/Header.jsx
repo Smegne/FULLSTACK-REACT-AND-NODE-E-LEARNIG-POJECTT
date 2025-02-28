@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import axios from 'axios';
 import styled from 'styled-components';
 
@@ -23,7 +24,7 @@ const NavLeft = styled.div`
   align-items: center;
   gap: 20px;
   @media (max-width: 768px) {
-    display: none; /* Hide text links on mobile */
+    display: none;
   }
 `;
 
@@ -32,7 +33,7 @@ const MobileNav = styled.div`
   align-items: center;
   gap: 10px;
   @media (max-width: 768px) {
-    display: flex; /* Show hamburger + search on mobile */
+    display: flex;
   }
 `;
 
@@ -42,7 +43,7 @@ const HamburgerButton = styled.button`
   color: #000;
   font-size: 1.5rem;
   cursor: pointer;
-  padding: 12px; /* Enhanced touch area */
+  padding: 12px;
 `;
 
 const SearchContainer = styled.div`
@@ -105,7 +106,7 @@ const Avatar = styled.img`
   border-radius: 50%;
   cursor: pointer;
   object-fit: cover;
-  padding: 4px; /* Enhanced touch area */
+  padding: 4px;
 `;
 
 const NavRight = styled.div`
@@ -128,8 +129,31 @@ const LogoutButton = styled.button`
   font-size: 1rem;
   &:hover { color: #007bff; }
   @media (max-width: 768px) {
-    display: none; /* Hide Logout in top right on mobile */
+    display: none;
   }
+`;
+
+const CartIcon = styled(Link)`
+  font-size: 1.5rem;
+  color: #000;
+  text-decoration: none;
+  position: relative;
+  &:hover { color: #007bff; }
+`;
+
+const CartCount = styled.span`
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #dc3545;
+  color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `;
 
 const MobileMenu = styled.div.attrs({
@@ -149,7 +173,7 @@ const MobileMenu = styled.div.attrs({
 
 const MobileMenuItem = styled(Link)`
   display: block;
-  padding: 10px 20px;
+  padding: 10px 0;
   color: #000;
   text-decoration: none;
   &:hover { color: #007bff; }
@@ -157,7 +181,7 @@ const MobileMenuItem = styled(Link)`
 
 const MobileLogoutButton = styled.button`
   display: block;
-  padding: 10px 20px;
+  padding: 10px 0;
   background: none;
   border: none;
   color: #000;
@@ -214,6 +238,7 @@ const SaveButton = styled.button`
 
 const Header = () => {
   const { user, logout, updateProfileImage } = useContext(AuthContext);
+  const { cart } = useCart();
   const [searchQuery, setSearchQuery] = useState('');
   const [courses, setCourses] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
@@ -229,19 +254,15 @@ const Header = () => {
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const token = localStorage.getItem('token');
-        if (token) {
-          const res = await axios.get('http://localhost:5000/api/courses', {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          setCourses(res.data);
-        }
+        const res = await axios.get('http://localhost:5000/api/courses');
+        setCourses(res.data);
       } catch (err) {
+        setError('Failed to load courses. Please try again later.');
         console.error('Failed to fetch courses:', err);
       }
     };
     fetchCourses();
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     if (searchQuery.trim() === '') {
@@ -382,6 +403,10 @@ const Header = () => {
       <NavRight>
         {user ? (
           <>
+            <CartIcon to="/cart" aria-label="View Cart">
+              🛒
+              {cart.length > 0 && <CartCount>{cart.length}</CartCount>}
+            </CartIcon>
             <Avatar 
               src={user.profile_image || defaultAvatar} 
               alt="User Avatar" 
@@ -418,18 +443,21 @@ const Header = () => {
         ) : (
           <>
             <NavLink to="/login">Login</NavLink>
-            <NavLink to="/signup">Sign In</NavLink>
+            {/* <NavLink to="/signup">Sign In</NavLink> */}
           </>
         )}
       </NavRight>
       <MobileMenu isOpen={menuOpen}>
         <MobileMenuItem to="/" onClick={() => setMenuOpen(false)}>E-Learning</MobileMenuItem>
         <MobileMenuItem to="/dashboard" onClick={() => setMenuOpen(false)}>Dashboard</MobileMenuItem>
+        <MobileMenuItem to="/cart" onClick={() => setMenuOpen(false)}>Cart</MobileMenuItem>
         {user?.role === 'admin' && (
           <MobileMenuItem to="/admin" onClick={() => setMenuOpen(false)}>Admin Settings</MobileMenuItem>
         )}
-        {user && (
+        {user ? (
           <MobileLogoutButton onClick={handleLogout}>Logout</MobileLogoutButton>
+        ) : (
+          <MobileMenuItem to="/login" onClick={() => setMenuOpen(false)}>Login</MobileMenuItem>
         )}
       </MobileMenu>
     </Nav>

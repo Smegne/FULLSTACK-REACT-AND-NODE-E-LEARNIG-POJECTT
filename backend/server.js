@@ -16,6 +16,10 @@ const userRoutes = require('./routes/users');
 const lessonRoutes = require('./routes/lessons');
 const progressRoutes = require('./routes/progress');
 const carouselRoutes = require('./routes/carousel');
+const cartRoutes = require('./routes/cart');
+app.use('/api/cart', cartRoutes);
+const assessmentRoutes = require('./routes/assessments');
+app.use('/api/assessments', assessmentRoutes);
 
 app.use('/api/courses', courseRoutes);
 app.use('/api/users', userRoutes); // Must include /api/users

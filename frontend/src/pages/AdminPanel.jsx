@@ -11,17 +11,19 @@ const ListItem = styled.li`display: flex; align-items: center; justify-content: 
 const Button = styled.button`padding: 5px 10px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; margin-left: 10px; &:hover { background-color: #0056b3; }`;
 const DeleteButton = styled(Button)`background-color: #dc3545; &:hover { background-color: #c82333; }`;
 const Spinner = styled.span`display: inline-block; width: 16px; height: 16px; border: 2px solid #007bff; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
+const Input = styled.input`padding: 10px; border: 1px solid #ccc; border-radius: 3px;`;
+const Textarea = styled.textarea`padding: 10px; border: 1px solid #ccc; border-radius: 3px; min-height: 100px;`;
 
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
   const [courses, setCourses] = useState([]);
   const [carouselImages, setCarouselImages] = useState([]);
   const [newUser, setNewUser] = useState({ username: '', email: '', password: '', role: 'student' });
-  const [editUser, setEditUser] = useState(null);
   const [newCourse, setNewCourse] = useState({ title: '', description: '', instructorId: '', thumbnail: null, thumbnailUrl: '', category: '' });
   const [editCourse, setEditCourse] = useState(null);
   const [newCarouselImage, setNewCarouselImage] = useState(null);
   const [editCarouselImage, setEditCarouselImage] = useState(null);
+  const [newAssessment, setNewAssessment] = useState({ courseId: '', title: '', questions: [{ question_text: '', correct_answer: '' }] });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -34,7 +36,6 @@ const AdminPanel = () => {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    console.log('Fetching data, loading:', true);
     setError('');
     try {
       const token = localStorage.getItem('token');
@@ -53,7 +54,6 @@ const AdminPanel = () => {
       console.error('Fetch error:', err);
     } finally {
       setLoading(false);
-      console.log('Fetch complete, loading:', false);
     }
   }, []);
 
@@ -79,47 +79,6 @@ const AdminPanel = () => {
     }
   };
 
-  const handleEditUser = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      const token = localStorage.getItem('token');
-      const { id, username, email, role } = editUser;
-      const res = await axios.put(`http://localhost:5000/api/users/${id}`, { username, email, role }, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      console.log('Edit user response:', res.data);
-      setEditUser(null);
-      await fetchData();
-    } catch (err) {
-      console.error('Edit user error:', err);
-      setError(err.response?.data?.error || err.message || 'Failed to update user');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteUser = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this user?')) return;
-    setLoading(true);
-    setError('');
-    try {
-      const token = localStorage.getItem('token');
-      console.log('Deleting user:', id);
-      const res = await axios.delete(`http://localhost:5000/api/users/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      console.log('Delete user response:', res.data);
-      await fetchData();
-    } catch (err) {
-      console.error('Delete user error:', err);
-      setError(err.response?.data?.error || err.message || 'Failed to delete user');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleAddCourse = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -132,25 +91,17 @@ const AdminPanel = () => {
       formData.append('instructorId', newCourse.instructorId);
       formData.append('category', newCourse.category);
       if (newCourse.thumbnailUrl) {
-        try {
-          await axios.head(newCourse.thumbnailUrl);
-          console.log('URL validated:', newCourse.thumbnailUrl);
-          formData.append('thumbnail_url', newCourse.thumbnailUrl);
-        } catch (err) {
-          console.error('URL validation failed:', err);
-          throw new Error('Invalid or inaccessible image URL');
-        }
+        await axios.head(newCourse.thumbnailUrl);
+        formData.append('thumbnail_url', newCourse.thumbnailUrl);
       } else if (newCourse.thumbnail) {
         formData.append('thumbnail', newCourse.thumbnail);
       } else {
         throw new Error('Please provide either a thumbnail file or URL');
       }
 
-      console.log('FormData:', [...formData.entries()]);
       const res = await axios.post('http://localhost:5000/api/courses', formData, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       setCourses((prev) => [...prev, { id: res.data.courseId, ...newCourse, thumbnail_url: newCourse.thumbnailUrl || 'pending' }]);
       setNewCourse({ title: '', description: '', instructorId: '', thumbnail: null, thumbnailUrl: '', category: '' });
       await fetchData();
@@ -181,15 +132,12 @@ const AdminPanel = () => {
         formData.append('thumbnail_url', editCourse.thumbnail_url || null);
       }
 
-      console.log('Editing course:', editCourse.id, [...formData.entries()]);
-      const res = await axios.put(`http://localhost:5000/api/courses/${editCourse.id}`, formData, {
+      await axios.put(`http://localhost:5000/api/courses/${editCourse.id}`, formData, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log('Edit response:', res.data);
       setEditCourse(null);
       await fetchData();
     } catch (err) {
-      console.error('Edit error:', err);
       setError(err.response?.data?.error || err.message || 'Failed to update course');
     } finally {
       setLoading(false);
@@ -202,14 +150,11 @@ const AdminPanel = () => {
     setError('');
     try {
       const token = localStorage.getItem('token');
-      console.log('Deleting course:', id);
-      const res = await axios.delete(`http://localhost:5000/api/courses/${id}`, {
+      await axios.delete(`http://localhost:5000/api/courses/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log('Delete response:', res.data);
       await fetchData();
     } catch (err) {
-      console.error('Delete error:', err);
       setError(err.response?.data?.error || err.message || 'Failed to delete course');
     } finally {
       setLoading(false);
@@ -307,6 +252,45 @@ const AdminPanel = () => {
     }
   };
 
+  const handleAssessmentSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post('http://localhost:5000/api/assessments', newAssessment, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setNewAssessment({ courseId: '', title: '', questions: [{ question_text: '', correct_answer: '' }] });
+      setError('Assessment added successfully');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to add assessment');
+      console.error('Assessment submit error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddQuestion = () => {
+    setNewAssessment(prev => ({
+      ...prev,
+      questions: [...prev.questions, { question_text: '', correct_answer: '' }]
+    }));
+  };
+
+  const handleQuestionChange = (index, field, value) => {
+    const updatedQuestions = [...newAssessment.questions];
+    updatedQuestions[index][field] = value;
+    setNewAssessment({ ...newAssessment, questions: updatedQuestions });
+  };
+
+  const handleRemoveQuestion = (index) => {
+    setNewAssessment(prev => ({
+      ...prev,
+      questions: prev.questions.filter((_, i) => i !== index)
+    }));
+  };
+
   return (
     <Container>
       <h1>Admin Panel</h1>
@@ -315,9 +299,9 @@ const AdminPanel = () => {
       <Section>
         <h2>Add New User</h2>
         <Form onSubmit={handleAddUser}>
-          <input type="text" placeholder="Username" value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value })} required disabled={loading} />
-          <input type="email" placeholder="Email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} required disabled={loading} />
-          <input type="password" placeholder="Password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} required disabled={loading} />
+          <Input type="text" placeholder="Username" value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value })} required disabled={loading} />
+          <Input type="email" placeholder="Email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} required disabled={loading} />
+          <Input type="password" placeholder="Password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} required disabled={loading} />
           <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })} disabled={loading}>
             <option value="student">Student</option>
             <option value="instructor">Instructor</option>
@@ -326,36 +310,20 @@ const AdminPanel = () => {
           <Button type="submit" disabled={loading}>{loading ? 'Adding...' : 'Add User'}</Button>
         </Form>
       </Section>
-      {editUser && (
-        <Section>
-          <h2>Edit User</h2>
-          <Form onSubmit={handleEditUser}>
-            <input type="text" placeholder="Username" value={editUser.username} onChange={(e) => setEditUser({ ...editUser, username: e.target.value })} required disabled={loading} />
-            <input type="email" placeholder="Email" value={editUser.email} onChange={(e) => setEditUser({ ...editUser, email: e.target.value })} required disabled={loading} />
-            <select value={editUser.role} onChange={(e) => setEditUser({ ...editUser, role: e.target.value })} disabled={loading}>
-              <option value="student">Student</option>
-              <option value="instructor">Instructor</option>
-              <option value="admin">Admin</option>
-            </select>
-            <Button type="submit" disabled={loading}>Save Changes</Button>
-            <Button type="button" onClick={() => setEditUser(null)} disabled={loading}>Cancel</Button>
-          </Form>
-        </Section>
-      )}
       <Section>
         <h2>Add New Course</h2>
         <Form onSubmit={handleAddCourse} encType="multipart/form-data">
-          <input type="text" placeholder="Course Title" value={newCourse.title} onChange={(e) => setNewCourse({ ...newCourse, title: e.target.value })} required disabled={loading} />
-          <textarea placeholder="Course Description" value={newCourse.description} onChange={(e) => setNewCourse({ ...newCourse, description: e.target.value })} required disabled={loading} />
-          <input type="number" placeholder="Instructor ID" value={newCourse.instructorId} onChange={(e) => setNewCourse({ ...newCourse, instructorId: e.target.value })} required disabled={loading} />
+          <Input type="text" placeholder="Course Title" value={newCourse.title} onChange={(e) => setNewCourse({ ...newCourse, title: e.target.value })} required disabled={loading} />
+          <Textarea placeholder="Course Description" value={newCourse.description} onChange={(e) => setNewCourse({ ...newCourse, description: e.target.value })} required disabled={loading} />
+          <Input type="number" placeholder="Instructor ID" value={newCourse.instructorId} onChange={(e) => setNewCourse({ ...newCourse, instructorId: e.target.value })} required disabled={loading} />
           <select value={newCourse.category} onChange={(e) => setNewCourse({ ...newCourse, category: e.target.value })} required disabled={loading}>
             <option value="">Select Category</option>
             {categories.map((cat) => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
-          <input type="url" placeholder="Thumbnail URL (optional)" value={newCourse.thumbnailUrl} onChange={handleUrlChange} disabled={loading} />
-          <input type="file" name="thumbnail" accept="image/jpeg,image/png" onChange={handleFileChange} disabled={loading || newCourse.thumbnailUrl} />
+          <Input type="url" placeholder="Thumbnail URL (optional)" value={newCourse.thumbnailUrl} onChange={handleUrlChange} disabled={loading} />
+          <Input type="file" name="thumbnail" accept="image/jpeg,image/png" onChange={handleFileChange} disabled={loading || newCourse.thumbnailUrl} />
           {newCourse.thumbnail && !newCourse.thumbnailUrl && (
             <img src={URL.createObjectURL(newCourse.thumbnail)} alt="Thumbnail Preview" style={{ width: '100px', marginTop: '10px' }} />
           )}
@@ -371,17 +339,17 @@ const AdminPanel = () => {
         <Section>
           <h2>Edit Course</h2>
           <Form onSubmit={handleEditCourse} encType="multipart/form-data">
-            <input type="text" placeholder="Course Title" value={editCourse.title} onChange={(e) => setEditCourse({ ...editCourse, title: e.target.value })} required disabled={loading} />
-            <textarea placeholder="Course Description" value={editCourse.description} onChange={(e) => setEditCourse({ ...editCourse, description: e.target.value })} required disabled={loading} />
-            <input type="number" placeholder="Instructor ID" value={editCourse.instructorId} onChange={(e) => setEditCourse({ ...editCourse, instructorId: e.target.value })} required disabled={loading} />
+            <Input type="text" placeholder="Course Title" value={editCourse.title} onChange={(e) => setEditCourse({ ...editCourse, title: e.target.value })} required disabled={loading} />
+            <Textarea placeholder="Course Description" value={editCourse.description} onChange={(e) => setEditCourse({ ...editCourse, description: e.target.value })} required disabled={loading} />
+            <Input type="number" placeholder="Instructor ID" value={editCourse.instructorId} onChange={(e) => setEditCourse({ ...editCourse, instructorId: e.target.value })} required disabled={loading} />
             <select value={editCourse.category} onChange={(e) => setEditCourse({ ...editCourse, category: e.target.value })} required disabled={loading}>
               <option value="">Select Category</option>
               {categories.map((cat) => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
-            <input type="url" placeholder="Thumbnail URL (optional)" value={editCourse.thumbnailUrl} onChange={(e) => handleUrlChange(e, true)} disabled={loading} />
-            <input type="file" name="thumbnail" accept="image/jpeg,image/png" onChange={(e) => handleFileChange(e, true)} disabled={loading || editCourse.thumbnailUrl} />
+            <Input type="url" placeholder="Thumbnail URL (optional)" value={editCourse.thumbnailUrl} onChange={(e) => handleUrlChange(e, true)} disabled={loading} />
+            <Input type="file" name="thumbnail" accept="image/jpeg,image/png" onChange={(e) => handleFileChange(e, true)} disabled={loading || editCourse.thumbnailUrl} />
             {(editCourse.thumbnail || editCourse.thumbnailUrl || editCourse.thumbnail_url) && (
               <img 
                 src={editCourse.thumbnail ? URL.createObjectURL(editCourse.thumbnail) : (editCourse.thumbnailUrl || editCourse.thumbnail_url)} 
@@ -397,7 +365,7 @@ const AdminPanel = () => {
       <Section>
         <h2>Add Carousel Image</h2>
         <Form onSubmit={handleAddCarouselImage} encType="multipart/form-data">
-          <input type="file" name="image" accept="image/jpeg,image/png" onChange={(e) => handleCarouselFileChange(e)} required disabled={loading} />
+          <Input type="file" name="image" accept="image/jpeg,image/png" onChange={(e) => handleCarouselFileChange(e)} required disabled={loading} />
           {newCarouselImage && (
             <img src={URL.createObjectURL(newCarouselImage)} alt="Preview" style={{ width: '100px', marginTop: '10px' }} />
           )}
@@ -408,7 +376,7 @@ const AdminPanel = () => {
         <Section>
           <h2>Edit Carousel Image</h2>
           <Form onSubmit={handleEditCarouselImage} encType="multipart/form-data">
-            <input type="file" name="image" accept="image/jpeg,image/png" onChange={(e) => handleCarouselFileChange(e, true)} required disabled={loading} />
+            <Input type="file" name="image" accept="image/jpeg,image/png" onChange={(e) => handleCarouselFileChange(e, true)} required disabled={loading} />
             {editCarouselImage.image && (
               <img src={URL.createObjectURL(editCarouselImage.image)} alt="Preview" style={{ width: '100px', marginTop: '10px' }} />
             )}
@@ -418,17 +386,58 @@ const AdminPanel = () => {
         </Section>
       )}
       <Section>
+        <h2>Add Assessment Questions</h2>
+        <Form onSubmit={handleAssessmentSubmit}>
+          <Input
+            type="text"
+            placeholder="Course ID"
+            value={newAssessment.courseId}
+            onChange={(e) => setNewAssessment({ ...newAssessment, courseId: e.target.value })}
+            required
+            disabled={loading}
+          />
+          <Input
+            type="text"
+            placeholder="Assessment Title"
+            value={newAssessment.title}
+            onChange={(e) => setNewAssessment({ ...newAssessment, title: e.target.value })}
+            required
+            disabled={loading}
+          />
+          {newAssessment.questions.map((q, index) => (
+            <div key={index} style={{ marginBottom: '10px' }}>
+              <Textarea
+                placeholder={`Question ${index + 1}`}
+                value={q.question_text}
+                onChange={(e) => handleQuestionChange(index, 'question_text', e.target.value)}
+                required
+                disabled={loading}
+              />
+              <Input
+                type="text"
+                placeholder="Correct Answer"
+                value={q.correct_answer}
+                onChange={(e) => handleQuestionChange(index, 'correct_answer', e.target.value)}
+                required
+                disabled={loading}
+              />
+              {newAssessment.questions.length > 1 && (
+                <DeleteButton type="button" onClick={() => handleRemoveQuestion(index)} disabled={loading}>
+                  Remove
+                </DeleteButton>
+              )}
+            </div>
+          ))}
+          <Button type="button" onClick={handleAddQuestion} disabled={loading}>Add Question</Button>
+          <Button type="submit" disabled={loading}>{loading ? 'Adding...' : 'Add Assessment'}</Button>
+        </Form>
+      </Section>
+      <Section>
         <h2>Existing Users</h2>
         <List>
           {users.map((user) => (
             <ListItem key={user.id}>
-              <span>
-                {user.username} ({user.email}) - Role: {user.role}
-              </span>
-              <div>
-                <Button onClick={() => setEditUser({ ...user })} disabled={loading}>Edit</Button>
-                <DeleteButton onClick={() => handleDeleteUser(user.id)} disabled={loading}>Delete</DeleteButton>
-              </div>
+              {user.username} ({user.email}) - Role: {user.role}
             </ListItem>
           ))}
         </List>
@@ -450,8 +459,8 @@ const AdminPanel = () => {
                 )}
               </span>
               <div>
-                <Button onClick={() => { console.log('Edit clicked:', course); setEditCourse({ ...course, thumbnail: null, thumbnailUrl: course.thumbnail_url || '' }); }} disabled={loading}>Edit</Button>
-                <DeleteButton onClick={() => { console.log('Delete clicked:', course.id); handleDeleteCourse(course.id); }} disabled={loading}>Delete</DeleteButton>
+                <Button onClick={() => setEditCourse({ ...course, thumbnail: null, thumbnailUrl: course.thumbnail_url || '' })} disabled={loading}>Edit</Button>
+                <DeleteButton onClick={() => handleDeleteCourse(course.id)} disabled={loading}>Delete</DeleteButton>
               </div>
             </ListItem>
           ))}
