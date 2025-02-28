@@ -10,6 +10,7 @@ const List = styled.ul`list-style: none; padding: 0;`;
 const ListItem = styled.li`display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid #ddd;`;
 const Button = styled.button`padding: 5px 10px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; margin-left: 10px; &:hover { background-color: #0056b3; }`;
 const DeleteButton = styled(Button)`background-color: #dc3545; &:hover { background-color: #c82333; }`;
+const Spinner = styled.span`display: inline-block; width: 16px; height: 16px; border: 2px solid #007bff; border-top: 2px solid transparent; border-radius: 50%; animation: spin 1s linear infinite; @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
 
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
@@ -17,8 +18,8 @@ const AdminPanel = () => {
   const [carouselImages, setCarouselImages] = useState([]);
   const [newUser, setNewUser] = useState({ username: '', email: '', password: '', role: 'student' });
   const [newCourse, setNewCourse] = useState({ title: '', description: '', instructorId: '', thumbnail: null, thumbnailUrl: '', category: '' });
-  const [newCarouselImage, setNewCarouselImage] = useState(null);
   const [editCourse, setEditCourse] = useState(null);
+  const [newCarouselImage, setNewCarouselImage] = useState(null);
   const [editCarouselImage, setEditCarouselImage] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -32,26 +33,29 @@ const AdminPanel = () => {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    console.log('Fetching data, loading:', true);
+    setError('');
     try {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('No authentication token found');
   
       const [userRes, courseRes, carouselRes] = await Promise.all([
-        axios.get('http://localhost:5000/api/users', { headers: { Authorization: `Bearer ${token}` } }), // Line 39
+        axios.get('http://localhost:5000/api/users', { headers: { Authorization: `Bearer ${token}` } }),
         axios.get('http://localhost:5000/api/courses', { headers: { Authorization: `Bearer ${token}` } }),
         axios.get('http://localhost:5000/api/carousel')
       ]);
       setUsers(userRes.data);
       setCourses(courseRes.data);
       setCarouselImages(carouselRes.data.slice(0, 6));
-      setError('');
     } catch (err) {
       setError(err.response?.status === 404 ? 'API endpoint not found - check backend' : err.message || 'Failed to load data');
-      console.error('Fetch error:', err); // Line 49 logs AxiosError
+      console.error('Fetch error:', err);
     } finally {
       setLoading(false);
+      console.log('Fetch complete, loading:', false);
     }
   }, []);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -59,6 +63,7 @@ const AdminPanel = () => {
   const handleAddUser = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     try {
       const token = localStorage.getItem('token');
       const res = await axios.post('http://localhost:5000/api/users/register', newUser, {
@@ -66,7 +71,6 @@ const AdminPanel = () => {
       });
       setUsers((prev) => [...prev, { ...newUser, id: res.data.userId }]);
       setNewUser({ username: '', email: '', password: '', role: 'student' });
-      setError('');
     } catch (err) {
       setError(err.response?.status === 403 ? 'Admin access required' : err.response?.data?.error || 'Failed to add user');
     } finally {
@@ -77,6 +81,7 @@ const AdminPanel = () => {
   const handleAddCourse = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     try {
       const token = localStorage.getItem('token');
       const formData = new FormData();
@@ -85,8 +90,14 @@ const AdminPanel = () => {
       formData.append('instructorId', newCourse.instructorId);
       formData.append('category', newCourse.category);
       if (newCourse.thumbnailUrl) {
-        await axios.head(newCourse.thumbnailUrl);
-        formData.append('thumbnailUrl', newCourse.thumbnailUrl);
+        try {
+          await axios.head(newCourse.thumbnailUrl);
+          console.log('URL validated:', newCourse.thumbnailUrl);
+          formData.append('thumbnail_url', newCourse.thumbnailUrl);
+        } catch (err) {
+          console.error('URL validation failed:', err);
+          throw new Error('Invalid or inaccessible image URL');
+        }
       } else if (newCourse.thumbnail) {
         formData.append('thumbnail', newCourse.thumbnail);
       } else {
@@ -101,7 +112,6 @@ const AdminPanel = () => {
       setCourses((prev) => [...prev, { id: res.data.courseId, ...newCourse, thumbnail_url: newCourse.thumbnailUrl || 'pending' }]);
       setNewCourse({ title: '', description: '', instructorId: '', thumbnail: null, thumbnailUrl: '', category: '' });
       await fetchData();
-      setError('');
     } catch (err) {
       setError(err.response?.data?.error || err.message || 'Failed to add course');
     } finally {
@@ -112,6 +122,7 @@ const AdminPanel = () => {
   const handleEditCourse = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     try {
       const token = localStorage.getItem('token');
       const formData = new FormData();
@@ -121,20 +132,22 @@ const AdminPanel = () => {
       formData.append('category', editCourse.category);
       if (editCourse.thumbnailUrl) {
         await axios.head(editCourse.thumbnailUrl);
-        formData.append('thumbnailUrl', editCourse.thumbnailUrl);
+        formData.append('thumbnail_url', editCourse.thumbnailUrl);
       } else if (editCourse.thumbnail) {
         formData.append('thumbnail', editCourse.thumbnail);
       } else {
-        formData.append('thumbnailUrl', editCourse.thumbnail_url);
+        formData.append('thumbnail_url', editCourse.thumbnail_url || null);
       }
 
-      await axios.put(`http://localhost:5000/api/courses/${editCourse.id}`, formData, {
+      console.log('Editing course:', editCourse.id, [...formData.entries()]);
+      const res = await axios.put(`http://localhost:5000/api/courses/${editCourse.id}`, formData, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      console.log('Edit response:', res.data);
       setEditCourse(null);
       await fetchData();
-      setError('');
     } catch (err) {
+      console.error('Edit error:', err);
       setError(err.response?.data?.error || err.message || 'Failed to update course');
     } finally {
       setLoading(false);
@@ -144,15 +157,19 @@ const AdminPanel = () => {
   const handleDeleteCourse = async (id) => {
     if (!window.confirm('Are you sure you want to delete this course?')) return;
     setLoading(true);
+    setError('');
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5000/api/courses/${id}`, {
+      console.log('Deleting course:', id);
+      const res = await axios.delete(`http://localhost:5000/api/courses/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      console.log('Delete response:', res.data);
       await fetchData();
-      setError('');
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to delete course');
+      console.error('Delete error:', err);
+      const errorMsg = err.response?.status === 404 ? 'Course not found or delete endpoint unavailable - check backend' : err.response?.data?.error || err.message || 'Failed to delete course';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -161,6 +178,7 @@ const AdminPanel = () => {
   const handleAddCarouselImage = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     try {
       const token = localStorage.getItem('token');
       const formData = new FormData();
@@ -172,7 +190,6 @@ const AdminPanel = () => {
       setCarouselImages((prev) => [...prev, { id: res.data.id, image_url: res.data.image_url }].slice(0, 6));
       setNewCarouselImage(null);
       await fetchData();
-      setError('');
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to add carousel image');
     } finally {
@@ -183,6 +200,7 @@ const AdminPanel = () => {
   const handleEditCarouselImage = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     try {
       const token = localStorage.getItem('token');
       const formData = new FormData();
@@ -193,7 +211,6 @@ const AdminPanel = () => {
       });
       setEditCarouselImage(null);
       await fetchData();
-      setError('');
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to update carousel image');
     } finally {
@@ -204,13 +221,13 @@ const AdminPanel = () => {
   const handleDeleteCarouselImage = async (id) => {
     if (!window.confirm('Are you sure you want to delete this carousel image?')) return;
     setLoading(true);
+    setError('');
     try {
       const token = localStorage.getItem('token');
       await axios.delete(`http://localhost:5000/api/carousel/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       await fetchData();
-      setError('');
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to delete carousel image');
     } finally {
@@ -253,7 +270,7 @@ const AdminPanel = () => {
     <Container>
       <h1>Admin Panel</h1>
       {error && <ErrorMessage>{error}</ErrorMessage>}
-      {loading && <p>Loading...</p>}
+      {loading && <p><Spinner /> Loading...</p>}
       <Section>
         <h2>Add New User</h2>
         <Form onSubmit={handleAddUser}>
@@ -308,15 +325,15 @@ const AdminPanel = () => {
             </select>
             <input type="url" placeholder="Thumbnail URL (optional)" value={editCourse.thumbnailUrl} onChange={(e) => handleUrlChange(e, true)} disabled={loading} />
             <input type="file" name="thumbnail" accept="image/jpeg,image/png" onChange={(e) => handleFileChange(e, true)} disabled={loading || editCourse.thumbnailUrl} />
-            {(editCourse.thumbnail || editCourse.thumbnailUrl) && (
+            {(editCourse.thumbnail || editCourse.thumbnailUrl || editCourse.thumbnail_url) && (
               <img 
-                src={editCourse.thumbnail ? URL.createObjectURL(editCourse.thumbnail) : editCourse.thumbnailUrl || editCourse.thumbnail_url} 
+                src={editCourse.thumbnail ? URL.createObjectURL(editCourse.thumbnail) : (editCourse.thumbnailUrl || editCourse.thumbnail_url)} 
                 alt="Thumbnail Preview" 
                 style={{ width: '100px', marginTop: '10px' }} 
               />
             )}
             <button type="submit" disabled={loading}>Save Changes</button>
-            <Button type="button" onClick={() => setEditCourse(null)} disabled={loading}>Cancel</Button>
+            <button type="button" onClick={() => setEditCourse(null)} disabled={loading}>Cancel</button>
           </Form>
         </Section>
       )}
@@ -370,8 +387,8 @@ const AdminPanel = () => {
                 )}
               </span>
               <div>
-                <Button onClick={() => setEditCourse({ ...course, thumbnail: null, thumbnailUrl: '' })} disabled={loading}>Edit</Button>
-                <DeleteButton onClick={() => handleDeleteCourse(course.id)} disabled={loading}>Delete</DeleteButton>
+                <Button onClick={() => { console.log('Edit clicked:', course); setEditCourse({ ...course, thumbnail: null, thumbnailUrl: course.thumbnail_url || '' }); }} disabled={loading}>Edit</Button>
+                <DeleteButton onClick={() => { console.log('Delete clicked:', course.id); handleDeleteCourse(course.id); }} disabled={loading}>Delete</DeleteButton>
               </div>
             </ListItem>
           ))}

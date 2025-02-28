@@ -103,25 +103,28 @@ const CourseCatalog = () => {
     'Grade Ten Tutorial', 'Grade Eleven Tutorial', 'Grade Twelve Tutorial',
     'Web Development', 'App Development'
   ];
-
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setError('');
+  
     try {
-      const token = localStorage.getItem('token');
+      // ✅ Fetch courses & carousel without authentication
       const [courseRes, carouselRes] = await Promise.all([
-        axios.get('http://localhost:5000/api/courses', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('http://localhost:5000/api/courses'),  // No token required
         axios.get('http://localhost:5000/api/carousel')
       ]);
+  
       setCourses(courseRes.data);
       setCarouselImages(carouselRes.data);
-      setError('');
     } catch (err) {
-      setError(err.response?.status === 401 ? 'Please log in to view courses' : err.response?.data?.error || 'Failed to load courses');
-      console.error(err);
+      console.error('Error fetching data:', err);
+      setError('Failed to load data');
     } finally {
       setLoading(false);
     }
   }, []);
+  
+  
 
   useEffect(() => {
     fetchData();
