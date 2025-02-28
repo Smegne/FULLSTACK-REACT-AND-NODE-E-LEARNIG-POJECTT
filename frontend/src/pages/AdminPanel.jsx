@@ -17,6 +17,7 @@ const AdminPanel = () => {
   const [courses, setCourses] = useState([]);
   const [carouselImages, setCarouselImages] = useState([]);
   const [newUser, setNewUser] = useState({ username: '', email: '', password: '', role: 'student' });
+  const [editUser, setEditUser] = useState(null);
   const [newCourse, setNewCourse] = useState({ title: '', description: '', instructorId: '', thumbnail: null, thumbnailUrl: '', category: '' });
   const [editCourse, setEditCourse] = useState(null);
   const [newCarouselImage, setNewCarouselImage] = useState(null);
@@ -73,6 +74,47 @@ const AdminPanel = () => {
       setNewUser({ username: '', email: '', password: '', role: 'student' });
     } catch (err) {
       setError(err.response?.status === 403 ? 'Admin access required' : err.response?.data?.error || 'Failed to add user');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditUser = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const token = localStorage.getItem('token');
+      const { id, username, email, role } = editUser;
+      const res = await axios.put(`http://localhost:5000/api/users/${id}`, { username, email, role }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log('Edit user response:', res.data);
+      setEditUser(null);
+      await fetchData();
+    } catch (err) {
+      console.error('Edit user error:', err);
+      setError(err.response?.data?.error || err.message || 'Failed to update user');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) return;
+    setLoading(true);
+    setError('');
+    try {
+      const token = localStorage.getItem('token');
+      console.log('Deleting user:', id);
+      const res = await axios.delete(`http://localhost:5000/api/users/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log('Delete user response:', res.data);
+      await fetchData();
+    } catch (err) {
+      console.error('Delete user error:', err);
+      setError(err.response?.data?.error || err.message || 'Failed to delete user');
     } finally {
       setLoading(false);
     }
@@ -168,8 +210,7 @@ const AdminPanel = () => {
       await fetchData();
     } catch (err) {
       console.error('Delete error:', err);
-      const errorMsg = err.response?.status === 404 ? 'Course not found or delete endpoint unavailable - check backend' : err.response?.data?.error || err.message || 'Failed to delete course';
-      setError(errorMsg);
+      setError(err.response?.data?.error || err.message || 'Failed to delete course');
     } finally {
       setLoading(false);
     }
@@ -282,9 +323,25 @@ const AdminPanel = () => {
             <option value="instructor">Instructor</option>
             <option value="admin">Admin</option>
           </select>
-          <button type="submit" disabled={loading}>{loading ? 'Adding...' : 'Add User'}</button>
+          <Button type="submit" disabled={loading}>{loading ? 'Adding...' : 'Add User'}</Button>
         </Form>
       </Section>
+      {editUser && (
+        <Section>
+          <h2>Edit User</h2>
+          <Form onSubmit={handleEditUser}>
+            <input type="text" placeholder="Username" value={editUser.username} onChange={(e) => setEditUser({ ...editUser, username: e.target.value })} required disabled={loading} />
+            <input type="email" placeholder="Email" value={editUser.email} onChange={(e) => setEditUser({ ...editUser, email: e.target.value })} required disabled={loading} />
+            <select value={editUser.role} onChange={(e) => setEditUser({ ...editUser, role: e.target.value })} disabled={loading}>
+              <option value="student">Student</option>
+              <option value="instructor">Instructor</option>
+              <option value="admin">Admin</option>
+            </select>
+            <Button type="submit" disabled={loading}>Save Changes</Button>
+            <Button type="button" onClick={() => setEditUser(null)} disabled={loading}>Cancel</Button>
+          </Form>
+        </Section>
+      )}
       <Section>
         <h2>Add New Course</h2>
         <Form onSubmit={handleAddCourse} encType="multipart/form-data">
@@ -305,9 +362,9 @@ const AdminPanel = () => {
           {newCourse.thumbnailUrl && (
             <img src={newCourse.thumbnailUrl} alt="Thumbnail Preview" style={{ width: '100px', marginTop: '10px' }} onError={() => setError('Invalid or inaccessible URL')} />
           )}
-          <button type="submit" disabled={loading || (!newCourse.thumbnail && !newCourse.thumbnailUrl)}>
+          <Button type="submit" disabled={loading || (!newCourse.thumbnail && !newCourse.thumbnailUrl)}>
             {loading ? 'Uploading...' : 'Add Course'}
-          </button>
+          </Button>
         </Form>
       </Section>
       {editCourse && (
@@ -332,8 +389,8 @@ const AdminPanel = () => {
                 style={{ width: '100px', marginTop: '10px' }} 
               />
             )}
-            <button type="submit" disabled={loading}>Save Changes</button>
-            <button type="button" onClick={() => setEditCourse(null)} disabled={loading}>Cancel</button>
+            <Button type="submit" disabled={loading}>Save Changes</Button>
+            <Button type="button" onClick={() => setEditCourse(null)} disabled={loading}>Cancel</Button>
           </Form>
         </Section>
       )}
@@ -344,7 +401,7 @@ const AdminPanel = () => {
           {newCarouselImage && (
             <img src={URL.createObjectURL(newCarouselImage)} alt="Preview" style={{ width: '100px', marginTop: '10px' }} />
           )}
-          <button type="submit" disabled={loading}>{loading ? 'Uploading...' : 'Add Image'}</button>
+          <Button type="submit" disabled={loading}>{loading ? 'Uploading...' : 'Add Image'}</Button>
         </Form>
       </Section>
       {editCarouselImage && (
@@ -355,7 +412,7 @@ const AdminPanel = () => {
             {editCarouselImage.image && (
               <img src={URL.createObjectURL(editCarouselImage.image)} alt="Preview" style={{ width: '100px', marginTop: '10px' }} />
             )}
-            <button type="submit" disabled={loading}>Save Changes</button>
+            <Button type="submit" disabled={loading}>Save Changes</Button>
             <Button type="button" onClick={() => setEditCarouselImage(null)} disabled={loading}>Cancel</Button>
           </Form>
         </Section>
@@ -365,7 +422,13 @@ const AdminPanel = () => {
         <List>
           {users.map((user) => (
             <ListItem key={user.id}>
-              {user.username} ({user.email}) - Role: {user.role}
+              <span>
+                {user.username} ({user.email}) - Role: {user.role}
+              </span>
+              <div>
+                <Button onClick={() => setEditUser({ ...user })} disabled={loading}>Edit</Button>
+                <DeleteButton onClick={() => handleDeleteUser(user.id)} disabled={loading}>Delete</DeleteButton>
+              </div>
             </ListItem>
           ))}
         </List>

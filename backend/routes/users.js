@@ -140,4 +140,37 @@ router.get('/me', authMiddleware, (req, res) => {
   });
 });
 
+// 🔒 ONLY ADMINS CAN EDIT USERS - ADDED HERE
+router.put('/:id', authMiddleware, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+  const userId = req.params.id;
+  const { username, email, role } = req.body;
+  console.log('PUT /api/users/:id requested, ID:', userId, 'Data:', { username, email, role });
+  db.query('UPDATE users SET username = ?, email = ?, role = ? WHERE id = ?', 
+    [username, email, role, userId], (err, result) => {
+      if (err) {
+        console.error('Update user error:', err);
+        if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Email already exists' });
+        return res.status(500).json({ error: err.message });
+      }
+      if (result.affectedRows === 0) return res.status(404).json({ error: 'User not found' });
+      res.json({ message: 'User updated' });
+    });
+});
+
+// 🔒 ONLY ADMINS CAN DELETE USERS - ADDED HERE
+router.delete('/:id', authMiddleware, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+  const userId = req.params.id;
+  console.log('DELETE /api/users/:id requested, ID:', userId);
+  db.query('DELETE FROM users WHERE id = ?', [userId], (err, result) => {
+    if (err) {
+      console.error('Delete user error:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'User not found' });
+    res.json({ message: 'User deleted' });
+  });
+});
+
 module.exports = router;
