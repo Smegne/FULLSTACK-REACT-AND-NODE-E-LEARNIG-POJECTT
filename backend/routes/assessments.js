@@ -13,6 +13,18 @@ router.post('/', authMiddleware, (req, res) => {
     return res.status(400).json({ error: 'Course ID, title, and questions array are required' });
   }
 
+  // Validate questions format
+  for (const q of questions) {
+    if (!q.question_text || !q.correct_answer) {
+      return res.status(400).json({ error: 'Each question must have text and a correct answer' });
+    }
+    if (q.type === 'multiple-choice') {
+      if (!q.choices || !Array.isArray(q.choices) || q.choices.length < 2 || !q.choices.includes(q.correct_answer)) {
+        return res.status(400).json({ error: 'Multiple-choice questions must have at least two options and a valid correct answer' });
+      }
+    }
+  }
+
   // Verify course exists
   db.query('SELECT id FROM courses WHERE id = ?', [courseId], (err, courseResults) => {
     if (err) {
@@ -31,9 +43,15 @@ router.post('/', authMiddleware, (req, res) => {
       }
       const assessmentId = result.insertId;
 
-      // Insert questions
-      const questionValues = questions.map(q => [assessmentId, q.question_text, q.correct_answer]);
-      db.query('INSERT INTO questions (assessment_id, question_text, correct_answer) VALUES ?', [questionValues], (err) => {
+      // Insert questions with type and choices
+      const questionValues = questions.map(q => [
+        assessmentId,
+        q.question_text,
+        q.correct_answer,
+        q.type || 'short-answer', // Default to short-answer if not specified
+        q.choices ? JSON.stringify(q.choices) : null // JSON.stringify for choices array
+      ]);
+      db.query('INSERT INTO questions (assessment_id, question_text, correct_answer, type, choices) VALUES ?', [questionValues], (err) => {
         if (err) {
           console.error('Add questions error:', err);
           return res.status(500).json({ error: 'Failed to add questions' });
@@ -48,7 +66,7 @@ router.post('/', authMiddleware, (req, res) => {
 router.get('/course/:courseId', authMiddleware, (req, res) => {
   const courseId = req.params.courseId;
   db.query(`
-    SELECT a.id, a.title, q.id AS question_id, q.question_text, q.correct_answer 
+    SELECT a.id, a.title, q.id AS question_id, q.question_text, q.correct_answer, q.type, q.choices 
     FROM assessments a 
     LEFT JOIN questions q ON a.id = q.assessment_id 
     WHERE a.course_id = ?
@@ -66,7 +84,9 @@ router.get('/course/:courseId', authMiddleware, (req, res) => {
         assessments[row.id].questions.push({
           id: row.question_id,
           question_text: row.question_text,
-          correct_answer: row.correct_answer
+          correct_answer: row.correct_answer,
+          type: row.type || 'short-answer', // Ensure type is always returned
+          choices: row.choices ? JSON.parse(row.choices) : [] // Parse JSON choices if present
         });
       }
     });
@@ -74,7 +94,7 @@ router.get('/course/:courseId', authMiddleware, (req, res) => {
   });
 });
 
-// Add other routes (response, progress) from previous response if needed
+// Submit student response
 router.post('/response', authMiddleware, (req, res) => {
   const userId = req.user.id;
   const { questionId, studentAnswer } = req.body;
@@ -95,11 +115,12 @@ router.post('/response', authMiddleware, (req, res) => {
   });
 });
 
+// Get student progress report
 router.get('/progress/:courseId', authMiddleware, (req, res) => {
   const userId = req.user.id;
   const courseId = req.params.courseId;
   db.query(`
-    SELECT a.id AS assessment_id, a.title, q.id AS question_id, q.question_text, q.correct_answer, 
+    SELECT a.id AS assessment_id, a.title, q.id AS question_id, q.question_text, q.correct_answer, q.type, q.choices,
            sr.student_answer, sr.submitted_at
     FROM assessments a
     JOIN questions q ON a.id = q.assessment_id
@@ -119,6 +140,8 @@ router.get('/progress/:courseId', authMiddleware, (req, res) => {
         id: row.question_id,
         question_text: row.question_text,
         correct_answer: row.correct_answer,
+        type: row.type || 'short-answer',
+        choices: row.choices ? JSON.parse(row.choices) : [],
         student_answer: row.student_answer,
         submitted_at: row.submitted_at,
         is_correct: row.student_answer === row.correct_answer

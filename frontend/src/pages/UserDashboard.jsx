@@ -79,23 +79,39 @@ const AssessmentItem = styled.li`
   margin-bottom: 10px;
 `;
 
-const AssessmentHeader = styled.h3`
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+const AssessmentTitle = styled.h3`
   margin: 0;
-  padding: 5px 0;
   font-size: 1.5rem;
 `;
 
-const QuestionList = styled.ul`
+const QuestionTitleList = styled.ul`
   list-style: none;
+  padding-left: 20px;
+  margin-top: 10px;
+`;
+
+const QuestionTitleItem = styled.li`
+  padding: 5px 0;
+`;
+
+const QuestionTitle = styled.p`
+  cursor: pointer;
+  margin: 0;
+  font-size: 1.1rem;
+  &:hover { color: #007bff; }
+`;
+
+const QuestionDetails = styled.div`
+  margin-top: 10px;
   padding-left: 20px;
 `;
 
-const QuestionItem = styled.li`
-  margin: 15px 0;
+const QuestionText = styled.p`
+  margin: 0 0 10px;
+  font-size: 1.1rem;
+`;
+
+const AnswerContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -103,19 +119,20 @@ const QuestionItem = styled.li`
   @media (min-width: 600px) {
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
   }
 `;
 
-const QuestionText = styled.p`
-  margin: 0;
-  font-size: 1.1rem;
+const ChoiceLabel = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 16px;
 `;
 
-const AnswerContainer = styled.div`
-  display: flex;
-  gap: 10px;
-  align-items: center;
+const FeedbackMessage = styled.span`
+  color: ${props => props.correct ? '#28a745' : '#dc3545'};
+  font-size: 0.9rem;
+  margin-left: 10px;
 `;
 
 const ProgressReport = styled.div`
@@ -146,14 +163,15 @@ const UserDashboard = () => {
   const [activeTab, setActiveTab] = useState('assessments');
   const [assessments, setAssessments] = useState([]);
   const [progress, setProgress] = useState([]);
-  const [newAssessment, setNewAssessment] = useState({ courseId: '', title: '', questions: [{ question_text: '', correct_answer: '' }] });
+  const [newAssessment, setNewAssessment] = useState({ courseId: '', title: '', questions: [{ question_text: '', correct_answer: '', type: 'short-answer', choices: [] }] });
   const [responses, setResponses] = useState({});
+  const [submissionStatus, setSubmissionStatus] = useState({});
   const [expandedAssessments, setExpandedAssessments] = useState({});
+  const [expandedQuestions, setExpandedQuestions] = useState({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Example course ID (replace with dynamic selection)
-  const courseId = 1;
+  const courseId = 1; // Replace with dynamic selection
 
   useEffect(() => {
     const fetchData = async () => {
@@ -171,6 +189,15 @@ const UserDashboard = () => {
         ]);
         setAssessments(assessmentsRes.data);
         setProgress(progressRes.data);
+        const status = {};
+        progressRes.data.forEach(assessment => {
+          assessment.questions.forEach(q => {
+            if (q.student_answer) {
+              status[q.id] = q.is_correct;
+            }
+          });
+        });
+        setSubmissionStatus(status);
         setError('');
       } catch (err) {
         setError(err.response?.data?.error || 'Failed to load data. Please check your connection.');
@@ -191,7 +218,7 @@ const UserDashboard = () => {
       await axios.post('http://localhost:5000/api/assessments', newAssessment, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setNewAssessment({ courseId: '', title: '', questions: [{ question_text: '', correct_answer: '' }] });
+      setNewAssessment({ courseId: '', title: '', questions: [{ question_text: '', correct_answer: '', type: 'short-answer', choices: [] }] });
       const res = await axios.get(`http://localhost:5000/api/assessments/course/${courseId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -215,11 +242,16 @@ const UserDashboard = () => {
       await axios.post('http://localhost:5000/api/assessments/response', { questionId, studentAnswer }, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      toast.success('Answer submitted successfully!', { position: 'top-right', autoClose: 2000 });
+      toast.success('Answer submitted!', { position: 'top-right', autoClose: 2000 });
       const res = await axios.get(`http://localhost:5000/api/assessments/progress/${courseId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setProgress(res.data);
+      const question = res.data
+        .flatMap(a => a.questions)
+        .find(q => q.id === questionId);
+      const isCorrect = question.is_correct;
+      setSubmissionStatus(prev => ({ ...prev, [questionId]: isCorrect }));
       setResponses(prev => ({ ...prev, [questionId]: '' }));
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to submit response');
@@ -233,7 +265,7 @@ const UserDashboard = () => {
   const addQuestionField = () => {
     setNewAssessment(prev => ({
       ...prev,
-      questions: [...prev.questions, { question_text: '', correct_answer: '' }]
+      questions: [...prev.questions, { question_text: '', correct_answer: '', type: 'short-answer', choices: [] }]
     }));
   };
 
@@ -252,6 +284,18 @@ const UserDashboard = () => {
 
   const toggleAssessment = (id) => {
     setExpandedAssessments(prev => ({ ...prev, [id]: !prev[id] }));
+    // Collapse all questions when closing assessment
+    if (expandedAssessments[id]) {
+      setExpandedQuestions(prev => {
+        const newState = { ...prev };
+        assessments.find(a => a.id === id).questions.forEach(q => delete newState[q.id]);
+        return newState;
+      });
+    }
+  };
+
+  const toggleQuestion = (questionId) => {
+    setExpandedQuestions(prev => ({ ...prev, [questionId]: !prev[questionId] }));
   };
 
   return (
@@ -322,42 +366,77 @@ const UserDashboard = () => {
               <AssessmentList>
                 {assessments.map(assessment => (
                   <AssessmentItem key={assessment.id}>
-                    <AssessmentHeader 
+                    <AssessmentTitle>{assessment.title}</AssessmentTitle>
+                    <Button 
                       onClick={() => toggleAssessment(assessment.id)}
                       aria-expanded={expandedAssessments[assessment.id]}
-                      aria-label={`Toggle ${assessment.title}`}
+                      aria-label={`View questions for ${assessment.title}`}
                     >
-                      {assessment.title}
-                      <span>{expandedAssessments[assessment.id] ? '▼' : '▶'}</span>
-                    </AssessmentHeader>
+                      {expandedAssessments[assessment.id] ? 'Hide Questions' : 'View Questions'}
+                    </Button>
                     {expandedAssessments[assessment.id] && (
-                      <QuestionList>
+                      <QuestionTitleList>
                         {assessment.questions.map(q => (
-                          <QuestionItem key={q.id}>
-                            <QuestionText>{q.question_text}</QuestionText>
-                            {user.role === 'student' && (
-                              <AnswerContainer>
-                                <Input
-                                  type="text"
-                                  value={responses[q.id] || ''}
-                                  onChange={(e) => setResponses(prev => ({ ...prev, [q.id]: e.target.value }))}
-                                  placeholder="Your answer"
-                                  disabled={loading}
-                                  aria-label={`Answer for ${q.question_text}`}
-                                />
-                                <Button 
-                                  onClick={() => handleResponseSubmit(q.id)} 
-                                  onKeyPress={(e) => e.key === 'Enter' && handleResponseSubmit(q.id)}
-                                  disabled={loading || !responses[q.id]}
-                                  aria-label={`Submit answer for ${q.question_text}`}
-                                >
-                                  Answer
-                                </Button>
-                              </AnswerContainer>
+                          <QuestionTitleItem key={q.id}>
+                            <QuestionTitle 
+                              onClick={() => toggleQuestion(q.id)}
+                              aria-expanded={expandedQuestions[q.id]}
+                              aria-label={`Expand ${q.question_text}`}
+                            >
+                              {q.question_text.length > 50 ? `${q.question_text.substring(0, 50)}...` : q.question_text}
+                              <span style={{ marginLeft: '5px' }}>{expandedQuestions[q.id] ? '▼' : '▶'}</span>
+                            </QuestionTitle>
+                            {expandedQuestions[q.id] && (
+                              <QuestionDetails>
+                                <QuestionText>{q.question_text}</QuestionText>
+                                {user.role === 'student' && (
+                                  <AnswerContainer>
+                                    {q.type === 'short-answer' ? (
+                                      <Input
+                                        type="text"
+                                        value={responses[q.id] || ''}
+                                        onChange={(e) => setResponses(prev => ({ ...prev, [q.id]: e.target.value }))}
+                                        placeholder="Your answer"
+                                        disabled={loading || submissionStatus[q.id] !== undefined}
+                                        aria-label={`Answer for ${q.question_text}`}
+                                      />
+                                    ) : (
+                                      <div>
+                                        {q.choices.map((choice, index) => (
+                                          <ChoiceLabel key={index}>
+                                            <input
+                                              type="radio"
+                                              name={`question-${q.id}`}
+                                              value={choice}
+                                              checked={responses[q.id] === choice}
+                                              onChange={(e) => setResponses(prev => ({ ...prev, [q.id]: e.target.value }))}
+                                              disabled={loading || submissionStatus[q.id] !== undefined}
+                                            />
+                                            {choice}
+                                          </ChoiceLabel>
+                                        ))}
+                                      </div>
+                                    )}
+                                    <Button 
+                                      onClick={() => handleResponseSubmit(q.id)} 
+                                      onKeyPress={(e) => e.key === 'Enter' && handleResponseSubmit(q.id)}
+                                      disabled={loading || !responses[q.id] || submissionStatus[q.id] !== undefined}
+                                      aria-label={`Submit answer for ${q.question_text}`}
+                                    >
+                                      Submit
+                                    </Button>
+                                    {submissionStatus[q.id] !== undefined && (
+                                      <FeedbackMessage correct={submissionStatus[q.id]}>
+                                        {submissionStatus[q.id] ? 'Correct!' : 'Incorrect'}
+                                      </FeedbackMessage>
+                                    )}
+                                  </AnswerContainer>
+                                )}
+                              </QuestionDetails>
                             )}
-                          </QuestionItem>
+                          </QuestionTitleItem>
                         ))}
-                      </QuestionList>
+                      </QuestionTitleList>
                     )}
                   </AssessmentItem>
                 ))}
