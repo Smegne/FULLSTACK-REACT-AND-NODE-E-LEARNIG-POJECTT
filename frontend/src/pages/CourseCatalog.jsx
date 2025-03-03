@@ -30,21 +30,10 @@ const CourseGrid = styled.div`
   max-width: 100%;
   overflow-x: hidden;
 
-  @media (max-width: 1200px) {
-    grid-template-columns: repeat(4, 1fr);
-  }
-
-  @media (max-width: 900px) {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  @media (max-width: 600px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  @media (max-width: 400px) {
-    grid-template-columns: repeat(1, 1fr);
-  }
+  @media (max-width: 1200px) { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 900px) { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 600px) { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 400px) { grid-template-columns: repeat(1, 1fr); }
 `;
 
 const CourseCard = styled.div`
@@ -55,9 +44,7 @@ const CourseCard = styled.div`
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s;
   position: relative;
-  &:hover {
-    transform: scale(1.02);
-  }
+  &:hover { transform: scale(1.02); }
 `;
 
 const Thumbnail = styled.img`
@@ -83,19 +70,15 @@ const AddToCartBox = styled.div`
   position: absolute;
   top: 10px;
   right: 10px;
-  background: #007bff;
+  background: ${props => props.inCart ? '#28a745' : '#007bff'};
   color: white;
   padding: 5px 10px;
   border-radius: 3px;
   cursor: pointer;
   display: none;
   transition: background-color 0.2s;
-  &:hover {
-    background-color: #0056b3;
-  }
-  ${CourseCard}:hover & {
-    display: block;
-  }
+  &:hover { background-color: ${props => props.inCart ? '#218838' : '#0056b3'}; }
+  ${CourseCard}:hover & { display: block; }
 `;
 
 const SeeMoreButton = styled.button`
@@ -122,7 +105,7 @@ const CourseCatalog = () => {
   const [loading, setLoading] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState({});
   const location = useLocation();
-  const { addToCart } = useCart();
+  const { cart, addToCart } = useCart();
 
   const categories = [
     'Grade Four Tutorial', 'Grade Five Tutorial', 'Grade Six Tutorial',
@@ -142,7 +125,7 @@ const CourseCatalog = () => {
       setCarouselImages(carouselRes.data);
       setError('');
     } catch (err) {
-      setError('Unable to load courses. Please check your connection or try again later.');
+      setError(err.response?.data?.error || 'Failed to load courses');
       console.error('Fetch error:', err);
     } finally {
       setLoading(false);
@@ -194,6 +177,10 @@ const CourseCatalog = () => {
     });
   }, [addToCart]);
 
+  const isCourseInCart = useCallback((courseId) => {
+    return cart.some(item => item.id === courseId);
+  }, [cart]);
+
   const DISPLAY_LIMIT = 5;
 
   return (
@@ -228,13 +215,16 @@ const CourseCatalog = () => {
                     <p>Instructor ID: {course.instructor_id}</p>
                     <p>Category: {course.category}</p>
                     <Link to={`/course/${course.id}`}>View Course</Link>
-                    <AddToCartBox 
-                      onClick={() => handleAddToCart(course)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleAddToCart(course)}
+                    <AddToCartBox
+                      as={isCourseInCart(course.id) ? Link : 'div'}
+                      to={isCourseInCart(course.id) ? '/cart' : undefined}
+                      inCart={isCourseInCart(course.id)}
+                      onClick={!isCourseInCart(course.id) ? () => handleAddToCart(course) : undefined}
+                      onKeyPress={!isCourseInCart(course.id) ? (e) => e.key === 'Enter' && handleAddToCart(course) : undefined}
                       tabIndex={0}
-                      aria-label={`Add ${course.title} to cart`}
+                      aria-label={isCourseInCart(course.id) ? `Go to cart for ${course.title}` : `Add ${course.title} to cart`}
                     >
-                      🛒 Add to Cart
+                      {isCourseInCart(course.id) ? 'Go to Cart' : '🛒 Add to Cart'}
                     </AddToCartBox>
                   </CourseCard>
                 ))}

@@ -10,19 +10,20 @@ const Nav = styled.nav`
   justify-content: space-between;
   align-items: center;
   padding: 1rem 2rem;
-  background: #fff;
-  color: #000;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  color: #1a1a1a;
   position: sticky;
   top: 0;
   z-index: 1000;
-  border-bottom: 2px solid #000;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
 `;
 
 const NavLeft = styled.div`
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 25px;
   @media (max-width: 768px) {
     display: none;
   }
@@ -40,14 +41,23 @@ const MobileNav = styled.div`
 const HamburgerButton = styled.button`
   background: none;
   border: none;
-  color: #000;
-  font-size: 1.5rem;
+  color: #1a1a1a;
+  font-size: 1.8rem;
   cursor: pointer;
-  padding: 12px;
+  padding-left: 0px;
+  transition: color 0.3s ease, transform 0.3s ease;
+  &:hover {
+    color: #007bff;
+    transform: scale(1.1);
+  }
 `;
 
 const SearchContainer = styled.div`
   position: relative;
+  flex-grow: 1; /* Allows it to stretch */
+  max-width: 700px; /* Wider on desktop, like Udemy */
+  
+  padding-right:60px;
   @media (max-width: 768px) {
     display: none;
   }
@@ -57,17 +67,36 @@ const MobileSearchContainer = styled(SearchContainer)`
   display: none;
   @media (max-width: 768px) {
     display: block;
+    // margin: 0 10px;
+    width:80%;
+    max-width: 150px; /* Adjusted for mobile */
   }
 `;
 
 const SearchInput = styled.input`
-  padding: 5px 10px;
-  border: 1px solid #ccc;
-  border-radius: 3px;
-  width: 200px;
-  color: #000;
+  padding: 12px 20px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 25px;
+  width: 100%; /* Takes full container width */
+  color: #1a1a1a;
+  font-size: 1rem;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  &:focus {
+    border-color: #007bff;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
+    outline: none;
+  }
+  &::placeholder {
+    color: #888;
+    font-style: italic;
+  }
   @media (max-width: 768px) {
-    width: 150px;
+    width: 100%;
+    padding: 8px 15px;
+    border-radius: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 `;
 
@@ -77,56 +106,75 @@ const Suggestions = styled.ul`
   left: 0;
   right: 0;
   background: #fff;
-  color: #000;
+  color: #1a1a1a;
   list-style: none;
-  padding: 0;
+  padding: 10px 0;
   margin: 0;
-  border: 1px solid #ddd;
-  border-radius: 3px;
-  max-height: 200px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  max-height: 220px;
   overflow-y: auto;
   z-index: 10;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+  transition: opacity 0.2s ease;
 `;
 
 const SuggestionItem = styled.li`
-  padding: 5px 10px;
+  padding: 8px 15px;
   cursor: pointer;
-  &:hover { background: #f0f0f0; }
+  font-size: 0.95rem;
+  transition: background 0.2s ease;
+  &:hover { 
+    background: #f5f7fa; 
+    color: #007bff; 
+  }
 `;
 
 const SuggestionType = styled.span`
   font-style: italic;
   color: #666;
-  margin-left: 5px;
+  margin-left: 8px;
+  font-size: 0.85rem;
 `;
 
 const Avatar = styled.img`
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   cursor: pointer;
   object-fit: cover;
   padding: 4px;
+  border: 2px solid #e9ecef;
+  transition: transform 0.3s ease, border-color 0.3s ease;
+  &:hover {
+    transform: scale(1.05);
+    border-color: #007bff;
+  }
 `;
 
 const NavRight = styled.div`
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 25px;
 `;
 
 const NavLink = styled(Link)`
-  color: #000;
+  color: #1a1a1a;
   text-decoration: none;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: color 0.3s ease;
   &:hover { color: #007bff; }
 `;
 
 const LogoutButton = styled.button`
   background: none;
   border: none;
-  color: #000;
+  color: #1a1a1a;
   cursor: pointer;
   font-size: 1rem;
+  font-weight: 500;
+  transition: color 0.3s ease;
   &:hover { color: #007bff; }
   @media (max-width: 768px) {
     display: none;
@@ -134,26 +182,31 @@ const LogoutButton = styled.button`
 `;
 
 const CartIcon = styled(Link)`
-  font-size: 1.5rem;
-  color: #000;
+  font-size: 1.6rem;
+  color: #1a1a1a;
   text-decoration: none;
   position: relative;
-  &:hover { color: #007bff; }
+  transition: color 0.3s ease, transform 0.3s ease;
+  &:hover { 
+    color: #007bff; 
+    transform: scale(1.1); 
+  }
 `;
 
 const CartCount = styled.span`
   position: absolute;
-  top: -8px;
-  right: -8px;
+  top: -10px;
+  right: -10px;
   background: #dc3545;
   color: white;
   border-radius: 50%;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 `;
 
 const MobileMenu = styled.div.attrs({
@@ -164,29 +217,36 @@ const MobileMenu = styled.div.attrs({
   left: 0;
   width: 100%;
   background: #fff;
-  color: #000;
-  padding: 1rem;
+  color: #1a1a1a;
+  padding: 1.5rem;
   display: ${props => (props.isOpen ? 'block' : 'none')};
   z-index: 999;
-  border-top: 1px solid #ddd;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 `;
 
 const MobileMenuItem = styled(Link)`
   display: block;
-  padding: 10px 0;
-  color: #000;
+  padding: 12px 0;
+  color: #1a1a1a;
   text-decoration: none;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: color 0.3s ease;
   &:hover { color: #007bff; }
 `;
 
 const MobileLogoutButton = styled.button`
   display: block;
-  padding: 10px 0;
+  padding: 12px 0;
   background: none;
   border: none;
-  color: #000;
+  color: #1a1a1a;
   text-align: left;
   cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: color 0.3s ease;
   &:hover { color: #007bff; }
 `;
 
@@ -195,45 +255,55 @@ const Dropdown = styled.div`
   top: 100%;
   right: 0;
   background: #fff;
-  color: #000;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  padding: 15px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  color: #1a1a1a;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
   z-index: 1000;
-  width: 250px;
+  width: 260px;
+  transition: opacity 0.2s ease;
   @media (max-width: 768px) {
-    width: 200px;
+    width: 220px;
   }
 `;
 
 const ProfileImage = styled.img`
-  width: 80px;
-  height: 80px;
+  width: 90px;
+  height: 90px;
   border-radius: 50%;
   cursor: pointer;
-  margin-bottom: 10px;
+  margin-bottom: 15px;
+  border: 2px solid #e9ecef;
+  transition: transform 0.3s ease;
+  &:hover { transform: scale(1.05); }
 `;
 
 const ProfileDetail = styled.p`
-  margin: 5px 0;
-  font-size: 0.9rem;
-  color: #000;
+  margin: 8px 0;
+  font-size: 0.95rem;
+  color: #1a1a1a;
+  font-weight: 400;
 `;
 
 const UploadSection = styled.div`
-  margin-top: 10px;
+  margin-top: 15px;
 `;
 
 const SaveButton = styled.button`
-  margin-top: 10px;
-  padding: 5px 10px;
-  background-color: #007bff;
+  margin-top: 15px;
+  padding: 8px 15px;
+  background: linear-gradient(90deg, #007bff, #0056b3);
   color: #fff;
   border: none;
-  border-radius: 3px;
+  border-radius: 4px;
   cursor: pointer;
-  &:hover { background-color: #0056b3; }
+  font-size: 0.95rem;
+  transition: background 0.3s ease, transform 0.3s ease;
+  &:hover { 
+    background: linear-gradient(90deg, #0056b3, #003d82);
+    transform: scale(1.05);
+  }
 `;
 
 const Header = () => {

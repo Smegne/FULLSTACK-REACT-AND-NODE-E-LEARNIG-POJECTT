@@ -18,7 +18,14 @@ export const CartProvider = ({ children }) => {
           const res = await axios.get('http://localhost:5000/api/cart', {
             headers: { Authorization: `Bearer ${token}` },
           });
-          setCart(res.data);
+          // Normalize to use 'id' consistently
+          const normalizedCart = res.data.map(item => ({
+            id: item.course_id,
+            title: item.title,
+            thumbnail_url: item.thumbnail_url,
+            category: item.category,
+          }));
+          setCart(normalizedCart);
         } catch (err) {
           setError(err.response?.data?.error || 'Failed to fetch cart');
           console.error('Fetch cart error:', err);
@@ -26,7 +33,6 @@ export const CartProvider = ({ children }) => {
           setIsLoading(false);
         }
       } else {
-        // Fallback to localStorage for guests
         const savedCart = localStorage.getItem('cart');
         if (savedCart) {
           try {
@@ -55,8 +61,8 @@ export const CartProvider = ({ children }) => {
         await axios.post('http://localhost:5000/api/cart', { courseId: course.id }, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setCart(prev => prev.some(item => item.course_id === course.id) ? prev : [...prev, {
-          course_id: course.id,
+        setCart(prev => prev.some(item => item.id === course.id) ? prev : [...prev, {
+          id: course.id,
           title: course.title,
           thumbnail_url: course.thumbnail_url,
           category: course.category,
@@ -77,7 +83,7 @@ export const CartProvider = ({ children }) => {
         await axios.delete(`http://localhost:5000/api/cart/${courseId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setCart(prev => prev.filter(item => item.course_id !== courseId));
+        setCart(prev => prev.filter(item => item.id !== courseId));
       } catch (err) {
         setError(err.response?.data?.error || 'Failed to remove from cart');
         console.error('Remove from cart error:', err);

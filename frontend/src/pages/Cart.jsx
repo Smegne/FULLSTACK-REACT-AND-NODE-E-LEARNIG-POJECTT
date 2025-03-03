@@ -1,6 +1,8 @@
 import React from 'react';
 import { useCart } from '../context/CartContext';
 import styled from 'styled-components';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const CartContainer = styled.div`
   padding: 20px;
@@ -8,51 +10,32 @@ const CartContainer = styled.div`
   margin: 0 auto;
 `;
 
-const CartTitle = styled.h1`
-  font-size: 2rem;
-  color: #333;
-`;
-
-const CartList = styled.ul`
-  list-style: none;
-  padding: 0;
-`;
-
-const CartItem = styled.li`
+const CartItem = styled.div`
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
   padding: 10px;
   border-bottom: 1px solid #ddd;
-  gap: 10px;
-
-  @media (max-width: 600px) {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+  margin-bottom: 10px;
 `;
 
-const CourseImage = styled.img`
+const ItemDetails = styled.div`
+  flex-grow: 1;
+`;
+
+const Thumbnail = styled.img`
   width: 50px;
   height: 50px;
   object-fit: cover;
   border-radius: 5px;
-`;
-
-const CourseDetails = styled.div`
-  flex: 1;
-  margin-left: 10px;
-`;
-
-const CourseTitle = styled.span`
-  font-weight: bold;
+  margin-right: 10px;
 `;
 
 const RemoveButton = styled.button`
+  padding: 5px 10px;
   background-color: #dc3545;
   color: white;
   border: none;
-  padding: 5px 10px;
   border-radius: 3px;
   cursor: pointer;
   &:hover { background-color: #c82333; }
@@ -65,42 +48,42 @@ const ErrorMessage = styled.p`
 
 const Cart = () => {
   const { cart, removeFromCart, isLoading, error } = useCart();
-  const defaultImage = 'https://via.placeholder.com/50';
 
-  if (isLoading) return <CartContainer><p>Loading cart...</p></CartContainer>;
-  if (error) return <CartContainer><ErrorMessage>{error}</ErrorMessage></CartContainer>;
+  const handleRemove = (courseId) => {
+    removeFromCart(courseId);
+    toast.success('Course removed from cart!', {
+      position: "top-right",
+      autoClose: 2000,
+    });
+  };
+
+  if (isLoading) return <p>Loading cart...</p>;
+  if (error) return <ErrorMessage>{error}</ErrorMessage>;
+  if (cart.length === 0) return <p>Your cart is empty.</p>;
 
   return (
     <CartContainer>
-      <CartTitle>Your Cart</CartTitle>
-      {cart.length === 0 ? (
-        <p>No items in cart yet. Start adding courses!</p>
-      ) : (
-        <CartList>
-          {cart.map(item => (
-            <CartItem key={item.course_id}>
-              <CourseImage 
-                src={item.thumbnail_url || defaultImage} 
-                alt={item.title} 
-                loading="lazy"
-                onError={(e) => {
-                  e.target.src = defaultImage;
-                  console.log(`Failed to load image for ${item.title}`);
-                }}
-              />
-              <CourseDetails>
-                <CourseTitle>{item.title}</CourseTitle> - {item.category}
-              </CourseDetails>
-              <RemoveButton 
-                onClick={() => removeFromCart(item.course_id)}
-                aria-label={`Remove ${item.title} from cart`}
-              >
-                Remove
-              </RemoveButton>
-            </CartItem>
-          ))}
-        </CartList>
-      )}
+      <h1>Your Cart</h1>
+      {cart.map(item => (
+        <CartItem key={item.id}>
+          <Thumbnail 
+            src={item.thumbnail_url.startsWith('http') ? item.thumbnail_url : `http://localhost:5000${item.thumbnail_url}`} 
+            alt={item.title} 
+          />
+          <ItemDetails>
+            <h3>{item.title}</h3>
+            <p>Category: {item.category}</p>
+          </ItemDetails>
+          <RemoveButton
+            onClick={() => handleRemove(item.id)}
+            onKeyPress={(e) => e.key === 'Enter' && handleRemove(item.id)}
+            aria-label={`Remove ${item.title} from cart`}
+          >
+            Remove
+          </RemoveButton>
+        </CartItem>
+      ))}
+      <ToastContainer />
     </CartContainer>
   );
 };
